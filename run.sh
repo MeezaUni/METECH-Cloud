@@ -23,7 +23,7 @@ fi
 
 (cd frontend && { [ -d node_modules ] || npm ci; } && npm run build)
 cd backend
-uv sync
+uv sync --inexact
 echo; echo "  METECH Cloud is running at http://127.0.0.1:8010   (Ctrl+C to stop)"; echo
-( sleep 3; (command -v xdg-open >/dev/null && xdg-open http://127.0.0.1:8010) || (command -v open >/dev/null && open http://127.0.0.1:8010) || true ) &
+[ -n "${KMRL_NO_BROWSER:-}" ] || ( sleep 3; (command -v xdg-open >/dev/null && xdg-open http://127.0.0.1:8010) || (command -v open >/dev/null && open http://127.0.0.1:8010) || true ) &
 exec uv run uvicorn app.main:app --host 127.0.0.1 --port 8010

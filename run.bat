@@ -32,11 +32,11 @@ call npm run build || ( popd & pause & exit /b 1 )
 popd
 
 pushd backend
-uv sync || ( popd & pause & exit /b 1 )
+uv sync --inexact || ( popd & pause & exit /b 1 )
 echo.
 echo   METECH Cloud is running at http://127.0.0.1:8010   (close this window to stop)
 echo.
-start "" http://127.0.0.1:8010
+if not defined KMRL_NO_BROWSER start "" http://127.0.0.1:8010
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8010
 popd
 exit /b
