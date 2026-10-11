@@ -26,19 +26,26 @@ unreachable) the app uses the built-in rule engine and says so in the top bar.
 
 ## How well Gemini does
 
-Scored on the hand-written real-world test set (35 logbook messages, 20 questions) that the local
-edition's model is also scored on (`eval/realworld_test.jsonl`):
+Scored on the hand-written real-world test set (43 logbook messages, 25 questions) that the local
+edition's model is also scored on (`eval/realworld_test.jsonl`), as the supervisor sees the result
+(after the depot priority policy, see below):
 
 | | Rule engine | Gemini (`gemini-flash-latest`, thinking off) |
 |---|---|---|
-| Logbook messages fully correct | 74.3% | **94.3%** |
-| ...ignoring the Critical/High/Routine call | 77.1% | **100%** |
-| Facts extracted: precision / recall | 97.0% / 80.0% | **100% / 100%** |
-| Questions understood | 95.0% | **100%** |
+| Logbook messages fully correct | 74.4% | **100%** (88.4% before the priority policy) |
+| Facts extracted: precision / recall | 94.9% / 75.5% | **100% / 100%** |
+| Questions understood | 84.0% | **100%** |
 | Time per request | instant | ~2 s |
 
-The two remaining misses are priority judgement calls (a CCTV fault rated Routine, a slow door rated High).
 Re-run with `cd backend && uv run python ../eval/evaluate.py`; failures go to `eval/reports/`.
+
+## Priority policy
+
+How urgent a new job card is (Critical / High / Routine) is decided by `backend/app/priority.py`, not by
+the AI: brakes, wheels, bogies, train control, smoke and door-safety faults are always Critical; passenger-facing
+failures (doors, AC, PIS, CCTV, radio, traction) are High; comfort and cosmetic items are Routine. "Urgent" in the
+text escalates, "minor" de-escalates (never below Critical for safety items). Every override is shown to the
+supervisor with its reason. Edit the rules there; both editions and the local model's training data use them.
 
 `GEMINI_THINKING_BUDGET=0` (the default) turns off Gemini's hidden reasoning tokens: extraction doesn't need
 them and they made each request ~3x slower (8 s vs 2.6 s in testing). Rate-limit (429) and overload (503)

@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parent / "backend"))
 from app.ai import AIContext, AIUnavailable, build_provider, rules  # noqa: E402
 from app.config import settings  # noqa: E402
+from app.priority import apply_policy  # noqa: E402
 
 DEFAULTS = {"expiring_certificates": {"days": 7}, "highest_wear": {"limit": 5}}
 
@@ -57,6 +58,21 @@ def run(engine: str, rows: list[dict]) -> tuple[list, int, float]:
     return preds, errors, time.perf_counter() - started
 
 
+def with_policy(rows: list[dict], preds: list) -> list:
+    """Apply the depot priority policy exactly as the backend does before showing updates."""
+    out = []
+    for r, p in zip(rows, preds):
+        if r["task"] != "parse" or p is None:
+            out.append(p)
+            continue
+        out.append([
+            {**u, "priority": apply_policy(u.get("description") or "", u.get("source_text"), u.get("priority"))[0]}
+            if u.get("action") == "open_job_card" else u
+            for u in p
+        ])
+    return out
+
+
 def score(rows: list[dict], preds: list) -> dict:
     s = {"parse_n": 0, "exact": 0, "exact_relaxed": 0, "tp": 0, "fp": 0, "fn": 0, "ask_n": 0, "ask_exact": 0, "failures": []}
     for r, p in zip(rows, preds):
@@ -91,11 +107,13 @@ def main() -> None:
         if engine == "gemini" and not settings.gemini_api_key:
             sys.exit("GEMINI_API_KEY is not set in backend/.env")
         preds, errors, secs = run(engine, rows)
-        s = score(rows, preds)
+        raw = score(rows, preds)
+        s = score(rows, with_policy(rows, preds))   # what the supervisor actually sees
+        s["raw_exact"] = raw["exact"]
         s.update(errors=errors, seconds=round(secs, 1), model=settings.gemini_model if engine == "gemini" else "rules")
         report[engine] = s
         print(f"\n== {engine} ({s['model']}) on {s['parse_n']} logbook messages + {s['ask_n']} questions, {s['seconds']}s, {errors} errors")
-        print(f"  logbook   exact {s['exact'] / s['parse_n']:.1%}   ignoring priority {s['exact_relaxed'] / s['parse_n']:.1%}   "
+        print(f"  logbook   exact {s['exact'] / s['parse_n']:.1%} (raw engine {raw['exact'] / s['parse_n']:.1%})   ignoring priority {s['exact_relaxed'] / s['parse_n']:.1%}   "
               f"precision {s['precision']:.1%}  recall {s['recall']:.1%}  F1 {s['f1']:.1%}")
         print(f"  questions exact {s['ask_exact'] / s['ask_n']:.1%}")
     out = ROOT / "reports"
