@@ -1,19 +1,70 @@
-# KMRL Depot Planner — cloud AI edition
+# METECH Cloud — KMRL Depot Planner
 
-The induction planner with **Google Gemini** for reading logbooks and understanding questions.
-See the [top-level README](../README.md) for what the app does.
+AI-driven train induction planning for Kochi Metro Rail Limited, with **Google Gemini** reading logbooks
+and answering questions. Smart India Hackathon 2025, problem statement **SIH25081**, team **METECH**.
 
-## Run
+Every night a KMRL depot supervisor decides, for all 25 trainsets, which go into revenue service at 05:30,
+which wait on standby, and which go for inspection or deep cleaning. Today that is a two-hour spreadsheet
+exercise. This app does it in under a second and explains every decision.
 
-```bat
-run.bat
-```
+> A fully offline edition with our own fine-tuned model lives at
+> [MeezaUni/METECH-Local](https://github.com/MeezaUni/METECH-Local). Same planner and dashboard, no API key.
 
-Opens <http://127.0.0.1:8010>. The first run installs Python and Node dependencies.
+## Run it
 
-## Gemini key
+**Windows:** double-click `run.bat` (or run it from a terminal).
+**macOS / Linux:** `./run.sh`
 
-Create a key at <https://aistudio.google.com/apikey> and put it in `backend/.env`:
+It installs what it needs on the first run, asks for your Gemini API key once, builds the dashboard and opens
+<http://127.0.0.1:8010>. Requirements: [Node.js 20+](https://nodejs.org/) and [uv](https://docs.astral.sh/uv/)
+(the script offers to install uv for you).
+
+No key? Press Enter when asked: the app then reads logbooks with its built-in rule engine. You can add a key
+later in `backend/.env` (get one at <https://aistudio.google.com/apikey>). The key stays on your machine and is
+only used by the backend; it never reaches the browser.
+
+## What it does
+
+- **Induction planner** (Google OR-Tools CP-SAT). Assigns every train to Service, Standby, Inspection Bay,
+  Cleaning or Held, balancing the six factors in the problem statement:
+  1. Fitness certificates: a train with *any* expired Rolling-Stock, Signalling or Telecom certificate is never inducted
+  2. Job cards: open critical work keeps a train out; other open work prefers the inspection bay
+  3. Branding: trains behind on contracted advertising hours are preferred for service
+  4. Mileage balancing: trains with less wear since their last inspection are preferred
+  5. Cleaning slots: overdue trains compete for the limited deep-cleaning bays
+  6. Stabling geometry: inducting a train parked behind one that stays costs a shunting move
+- **Explanations**: each decision lists its reasons and the score that tipped it.
+- **What-if simulation**: stage changes (close a job card, renew a certificate, mark a clean) as a draft,
+  see the re-solved plan with before/after badges, then save or discard.
+- **3D depot view**: stabling lines, inspection bay and cleaning bay; trains glide to their new track when the plan changes.
+- **Logbook reader**: paste shift notes or WhatsApp messages; Gemini turns them into fleet updates you confirm one by one.
+- **Ask**: questions in plain English ("why is TS-09 on standby?"). Gemini only interprets the question;
+  every number in the answer is computed from live data, so it can't make up train states.
+- **Priority policy**: how urgent a new job card is (Critical / High / Routine) is decided by
+  `backend/app/priority.py`, not by the AI, and every override is explained.
+- **Audit trail**: every change and every approved plan is logged with who made it and how.
+
+## How well Gemini does
+
+Hand-written real-world test set (43 logbook messages, 25 questions, `eval/realworld_test.jsonl`), scored as
+the supervisor sees the result:
+
+| | Rule engine | Gemini (`gemini-flash-latest`, thinking off) |
+|---|---|---|
+| Logbook messages fully correct | 76.7% | **100%** |
+| Facts extracted: precision / recall | 97.4% / 77.6% | **100% / 100%** |
+| Questions understood | 84.0% | **100%** |
+| Time per request | instant | ~2 s |
+
+Re-run with `cd backend && uv run python ../eval/evaluate.py`; failures go to `eval/reports/`.
+
+`GEMINI_THINKING_BUDGET=0` (the default) turns off Gemini's hidden reasoning tokens: extraction doesn't need
+them and they made each request ~3x slower. Rate-limit (429) and overload (503) errors are retried twice before
+falling back to the rule engine.
+
+## Configuration
+
+`backend/.env` (created on first run from `.env.example`):
 
 ```
 GEMINI_API_KEY=your-key
@@ -21,48 +72,16 @@ GEMINI_MODEL=gemini-flash-latest
 GEMINI_THINKING_BUDGET=0
 ```
 
-The key is used only by the backend; it never reaches the browser. Without a key (or if Gemini is
-unreachable) the app uses the built-in rule engine and says so in the top bar.
-
-## How well Gemini does
-
-Scored on the hand-written real-world test set (43 logbook messages, 25 questions) that the local
-edition's model is also scored on (`eval/realworld_test.jsonl`), as the supervisor sees the result
-(after the depot priority policy, see below):
-
-| | Rule engine | Gemini (`gemini-flash-latest`, thinking off) |
-|---|---|---|
-| Logbook messages fully correct | 74.4% | **100%** (88.4% before the priority policy) |
-| Facts extracted: precision / recall | 94.9% / 75.5% | **100% / 100%** |
-| Questions understood | 84.0% | **100%** |
-| Time per request | instant | ~2 s |
-
-Re-run with `cd backend && uv run python ../eval/evaluate.py`; failures go to `eval/reports/`.
-
-## Priority policy
-
-How urgent a new job card is (Critical / High / Routine) is decided by `backend/app/priority.py`, not by
-the AI: brakes, wheels, bogies, train control, smoke and door-safety faults are always Critical; passenger-facing
-failures (doors, AC, PIS, CCTV, radio, traction) are High; comfort and cosmetic items are Routine. "Urgent" in the
-text escalates, "minor" de-escalates (never below Critical for safety items). Every override is shown to the
-supervisor with its reason. Edit the rules there; both editions and the local model's training data use them.
-
-`GEMINI_THINKING_BUDGET=0` (the default) turns off Gemini's hidden reasoning tokens: extraction doesn't need
-them and they made each request ~3x slower (8 s vs 2.6 s in testing). Rate-limit (429) and overload (503)
-errors are retried twice before falling back to the rule engine.
+Planner settings (service target, standby minimum, bay capacities, thresholds) are in `backend/app/config.py`.
+The demo fleet is regenerated from **History → Reset demo data**.
 
 ## Develop
 
-```bat
-cd backend  &  uv run uvicorn app.main:app --reload --port 8010
-cd frontend &  npm run dev          :: http://localhost:5173, proxies /api to :8010
-cd backend  &  uv run pytest
+```bash
+cd backend  && uv run uvicorn app.main:app --reload --port 8010
+cd frontend && npm run dev          # http://localhost:5173, proxies /api to :8010
+cd backend  && uv run pytest
 ```
-
-Planner settings (service target, standby minimum, bay capacities, thresholds) are in `backend/app/config.py`.
-The demo fleet is regenerated from **History → Reset demo data** or `POST /api/admin/reset`.
-
-## API
 
 | Method | Path | |
 |---|---|---|
@@ -75,4 +94,25 @@ The demo fleet is regenerated from **History → Reset demo data** or `POST /api
 | POST | `/api/ai/ask` | `{question}` → answer computed from live data |
 | GET | `/api/audit`, `/api/plan/history`, `/api/ai/info` | |
 
-Interactive docs at <http://127.0.0.1:8010/docs>.
+Interactive API docs at <http://127.0.0.1:8010/docs>.
+
+## Layout
+
+```
+backend/app/       FastAPI app: planner.py, fleet.py, updates.py, priority.py, assistant.py, ai/gemini.py, ai/rules.py
+backend/tests/     43 tests
+frontend/src/      React + TypeScript + three.js dashboard
+eval/              real-world test set and scorer
+run.bat, run.sh
+```
+
+## What changed from the hackathon prototype (v1.2)
+
+| v1.2 (Sept 2025) | Now |
+|---|---|
+| Backend grounded a train only if *all* certificates had expired (the frontend said *any*) | One readiness check used everywhere, with a regression test |
+| Gemini key shipped inside the browser bundle | Key stays on the server |
+| Edit dialog never showed job cards (`train.id` typo) | Fixed; job cards can be closed from the train panel |
+| CSV files overwritten on save, no history | SQLite with an audit log and approved-plan history |
+| 3 factors and a branding bonus | All 6 factors, depot capacities, explanations, shortfall alerts |
+| No tests | 43 backend tests |
