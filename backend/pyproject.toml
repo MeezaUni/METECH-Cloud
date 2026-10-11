@@ -1,0 +1,22 @@
+[project]
+name = "kmrl-hub-cloud"
+version = "2.0.0"
+description = "KMRL Sentient Operations Hub - AI-driven train induction planning (cloud AI edition)"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "ortools>=9.10",
+    "python-dotenv>=1.0",
+    "google-genai>=1.20",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
