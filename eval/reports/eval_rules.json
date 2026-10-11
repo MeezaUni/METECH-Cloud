@@ -1,0 +1,142 @@
+{
+  "rules": {
+    "parse_n": 43,
+    "exact": 33,
+    "exact_relaxed": 33,
+    "tp": 38,
+    "fp": 1,
+    "fn": 11,
+    "ask_n": 25,
+    "ask_exact": 21,
+    "failures": [
+      {
+        "text": "TS-7 completed A check today morning",
+        "expected": [
+          "('KMRL-TS-007', 'complete_maintenance', None, None, None, None)"
+        ],
+        "got": []
+      },
+      {
+        "text": "Driver of train 25 reports emergency brake not releasing at Aluva",
+        "expected": [
+          "('KMRL-TS-025', 'open_job_card', None, None, None, 'Critical')"
+        ],
+        "got": []
+      },
+      {
+        "text": "closed jc 1075",
+        "expected": [
+          "('close_job_card', 1075)"
+        ],
+        "got": []
+      },
+      {
+        "text": "TS-01 has done 5230 km since last A-check",
+        "expected": [
+          "('KMRL-TS-001', 'update_mileage', None, None, 5230, None)"
+        ],
+        "got": [
+          "('KMRL-TS-001', 'complete_maintenance', None, None, None, None)"
+        ]
+      },
+      {
+        "text": "TS-20 CCTV not recording in car 2",
+        "expected": [
+          "('KMRL-TS-020', 'open_job_card', None, None, None, 'High')"
+        ],
+        "got": []
+      },
+      {
+        "text": "B check of TS-24 over. TS-24 good to go",
+        "expected": [
+          "('KMRL-TS-024', 'complete_maintenance', None, None, None, None)"
+        ],
+        "got": []
+      },
+      {
+        "text": "TS-18 cleaning kazhinju, TS-19 needs cleaning",
+        "expected": [
+          "('KMRL-TS-018', 'mark_cleaned', None, None, None, None)",
+          "('KMRL-TS-019', 'flag_cleaning', None, None, None, None)"
+        ],
+        "got": [
+          "('KMRL-TS-019', 'flag_cleaning', None, None, None, None)"
+        ]
+      },
+      {
+        "text": "Please note TS-08 and TS-10 were deep cleaned tonight",
+        "expected": [
+          "('KMRL-TS-008', 'mark_cleaned', None, None, None, None)",
+          "('KMRL-TS-010', 'mark_cleaned', None, None, None, None)"
+        ],
+        "got": [
+          "('KMRL-TS-010', 'mark_cleaned', None, None, None, None)"
+        ]
+      },
+      {
+        "text": "closed wo 1080",
+        "expected": [
+          "('close_job_card', 1080)"
+        ],
+        "got": []
+      },
+      {
+        "text": "JC 1074 and JC 1075 both closed",
+        "expected": [
+          "('close_job_card', 1074)",
+          "('close_job_card', 1075)"
+        ],
+        "got": []
+      },
+      {
+        "question": "number of trains with warnings",
+        "expected": {
+          "intent": "count",
+          "status": "Warning"
+        },
+        "got": {
+          "intent": "help"
+        }
+      },
+      {
+        "question": "which certs lapse in the next fortnight",
+        "expected": {
+          "intent": "expiring_certificates",
+          "days": 14
+        },
+        "got": {
+          "intent": "expiring_certificates",
+          "days": 7
+        }
+      },
+      {
+        "question": "any certificates running out within a fortnight?",
+        "expected": {
+          "intent": "expiring_certificates",
+          "days": 14
+        },
+        "got": {
+          "intent": "list",
+          "status": "Service"
+        }
+      },
+      {
+        "question": "show me pending critical work",
+        "expected": {
+          "intent": "open_jobs",
+          "priority": "Critical"
+        },
+        "got": {
+          "intent": "help"
+        }
+      }
+    ],
+    "precision": 0.9743589743589743,
+    "recall": 0.7755102040816326,
+    "f1": 0.8636363636363635,
+    "raw_exact": 28,
+    "errors": 0,
+    "seconds": 0.0,
+    "model": "rules"
+  }
+}
