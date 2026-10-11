@@ -34,6 +34,8 @@ class Settings:
     )
     gemini_api_key: str | None = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+    # Extraction doesn't need reasoning tokens: 0 cuts latency ~3x (8 s -> 2.6 s). -1 = model default.
+    gemini_thinking_budget: int = int(os.getenv("GEMINI_THINKING_BUDGET", "0"))
     planner: PlannerConfig = field(default_factory=PlannerConfig)
 
 

@@ -18,13 +18,31 @@ Create a key at <https://aistudio.google.com/apikey> and put it in `backend/.env
 ```
 GEMINI_API_KEY=your-key
 GEMINI_MODEL=gemini-flash-latest
+GEMINI_THINKING_BUDGET=0
 ```
 
 The key is used only by the backend; it never reaches the browser. Without a key (or if Gemini is
 unreachable) the app uses the built-in rule engine and says so in the top bar.
 
-> The key from SIH2025 v1.2 was rejected by Google (`API_KEY_INVALID`) when this edition was built,
-> so `backend/.env` starts empty.
+## How well Gemini does
+
+Scored on the hand-written real-world test set (35 logbook messages, 20 questions) that the local
+edition's model is also scored on (`eval/realworld_test.jsonl`):
+
+| | Rule engine | Gemini (`gemini-flash-latest`, thinking off) |
+|---|---|---|
+| Logbook messages fully correct | 74.3% | **94.3%** |
+| ...ignoring the Critical/High/Routine call | 77.1% | **100%** |
+| Facts extracted: precision / recall | 97.0% / 80.0% | **100% / 100%** |
+| Questions understood | 95.0% | **100%** |
+| Time per request | instant | ~2 s |
+
+The two remaining misses are priority judgement calls (a CCTV fault rated Routine, a slow door rated High).
+Re-run with `cd backend && uv run python ../eval/evaluate.py`; failures go to `eval/reports/`.
+
+`GEMINI_THINKING_BUDGET=0` (the default) turns off Gemini's hidden reasoning tokens: extraction doesn't need
+them and they made each request ~3x slower (8 s vs 2.6 s in testing). Rate-limit (429) and overload (503)
+errors are retried twice before falling back to the rule engine.
 
 ## Develop
 
